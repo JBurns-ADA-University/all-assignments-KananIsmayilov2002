@@ -1,0 +1,102 @@
+.data
+sales:  .word  10, 20, 30, 0      @ Sales data for day 1 (0 marks the end)
+        .word  5, 7, 0            @ Sales data for day 2
+        .word  15, 25, 35, 45, 0  @ Sales data for day 3
+        .word  50, 0              @ Sales data for day 4
+        .word  100, 200, 0        @ Sales data for day 5
+
+result_total:  .word  0           @ Total sales
+result_avg:    .word  0           @ Average sales
+result_max:    .word  0           @ Maximum sales
+result_min:    .word  0x7FFFFFFF  @ Minimum sales initialized to maximum possible value
+
+        .text
+        .global _start
+
+_start:
+        MOV r0, #0                 @ Initialize total sales (r0)
+        LDR r4, =sales             @ Point to the sales data
+        MOV r1, #0                 @ Initialize counter for number of sales (r1)
+        MOV r2, #0                 @ Register for maximum sales (r2)
+        MOV r3, #0x7FFFFFFF        @ Register for minimum sales (r3)
+        MOV r6, #5                 @ Counter for days (r6)
+
+process_days:
+        LDR r5, [r4], #4           @ Load the next sale into r5 and increment pointer
+        CMP r5, #0                 @ Check if the end of the day's data (0) is reached
+        BEQ check_next_day         @ If 0, move to check the next day
+
+        ADD r0, r0, r5             @ Add sale to total sales
+        ADD r1, r1, #1             @ Increment the number of sales
+
+        CMP r5, r2                 @ Check if the current sale is greater than max
+        BHI update_max             @ If higher, update max
+skip_max_update:
+        CMP r5, r3                 @ Check if the current sale is less than min
+        BLS update_min             @ If lower or equal, update min
+skip_min_update:
+        B process_days             @ Repeat for the next sale
+
+update_max:
+        MOV r2, r5                 @ Update maximum sales
+        B skip_max_update
+
+update_min:
+        MOV r3, r5                 @ Update minimum sales
+        B skip_min_update
+
+check_next_day:
+        SUBS r6, r6, #1            @ Decrease day counter (r6) and check if all days processed
+        BEQ end_program            @ If all days processed, end
+        B process_days             @ Continue processing next day
+
+end_program:
+       @ Store the total sales in memory
+        LDR r7, =result_total
+        STR r0, [r7]
+
+        @ Compute the average sales
+        MOV r7, r0                 @ Copy total sales to r7
+        MOV r8, #5                 @ Set divisor (5 days)
+        BL divide                  @ Call division function
+        LDR r9, =result_avg        @ Store the result (average) in memory
+        STR r7, [r9]
+
+        @ Store the maximum sales in memory
+        LDR r10, =result_max
+        STR r2, [r10]
+
+        @ Store the minimum sales in memory
+        LDR r11, =result_min
+        STR r3, [r11]
+
+        @ Load result_total, result_avg, result_max, result_min back to registers
+        LDR r0, =result_total      @ Load total sales into r0
+        LDR r0, [r0]
+
+        LDR r1, =result_avg        @ Load average sales into r1
+        LDR r1, [r1]
+
+        LDR r2, =result_max        @ Load maximum sales into r2
+        LDR r2, [r2]
+
+        LDR r3, =result_min        @ Load minimum sales into r3
+        LDR r3, [r3]
+
+        @ End the program
+        MOV r7, #1                 @ Exit syscall number
+        SWI 0
+
+divide: 
+        @ Integer division of r7 by r8
+        MOV r12, #0                @ Clear remainder (not used)
+        MOV r14, #0                @ Clear quotient
+div_loop:
+        CMP r7, r8                 @ Check if dividend >= divisor
+        BLO div_end                @ If not, exit loop
+        SUB r7, r7, r8             @ Subtract divisor from dividend
+        ADD r14, r14, #1           @ Increment quotient
+        B div_loop                 @ Repeat
+div_end:
+        MOV r7, r14                @ Store quotient in r7 (result of division)
+        BX lr                      @ Return to caller
