@@ -14,4 +14,4 @@ Loop:
     B Loop             @ Unconditionally branch back to Loop
 
 Exit:
-    MOV R0, R2         @ Move the final count from R2 into R0 (output the result)
+    MOV R0, R2         @ Move the final count from R2 into R0 
