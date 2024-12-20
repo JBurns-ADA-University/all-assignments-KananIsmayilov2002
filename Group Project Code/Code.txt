@@ -1,0 +1,98 @@
+.section .data
+array:      .word 5, 2, 9, 1, 6, 3         @ Initial unsorted array
+n:          .word 6                        @ Number of elements in the array
+target:     .word 5                        @ Target value to search for
+result:     .word -1                       @ Result index (initialized to -1 if not found)
+
+    .section .text
+    .global _start
+
+_start:
+    @ Load base address of array and the size of the array
+    LDR R4, =array                         @ Base address of the array in R4
+    LDR R5, =n                             @ Load address of n into R5
+    LDR R5, [R5]                           @ Load the value of n into R5 (number of elements)
+
+    @ Initialize i (outer loop counter) to 0 for Selection Sort
+    MOV R3, #0                             @ i = 0
+
+@ Selection Sort
+outer_loop:
+    CMP R3, R5                             @ Check if i < n - 1
+    BGE start_binary_search                @ If i >= n-1, move to binary search
+
+    ADD R0, R4, R3, LSL #2                 @ Point to array[i]
+    MOV R7, R3                             @ min_index = i
+    LDR R8, [R0]                           @ min_value = array[i]
+    MOV R6, R3                             @ j = i
+    ADD R6, R6, #1                         @ j = i + 1
+
+inner_loop:
+    CMP R6, R5                             @ Check if j < n
+    BGE skip_swap                          @ If j >= n, exit inner loop
+
+    ADD R1, R4, R6, LSL #2                 @ Point to array[j]
+    LDR R2, [R1]                           @ Load array[j] into R2
+
+    CMP R2, R8                             @ Compare array[j] with min_value
+    BGE skip_min_update                    @ Skip if array[j] >= min_value
+
+    MOV R8, R2                             @ Update min_value
+    MOV R7, R6                             @ Update min_index to j
+
+skip_min_update:
+    ADD R6, R6, #1                         @ Move to next j (j++)
+    B inner_loop                           @ Repeat inner loop
+
+skip_swap:
+    CMP R7, R3                             @ Check if min_index == i
+    BEQ next_iteration                     @ If yes, no need to swap
+
+    @ Swap array[i] and array[min_index]
+    LDR R0, [R4, R3, LSL #2]               @ Load array[i] into R0
+    STR R8, [R4, R3, LSL #2]               @ Store min_value at array[i]
+    STR R0, [R4, R7, LSL #2]               @ Store original array[i] at min_index
+
+next_iteration:
+    ADD R3, R3, #1                         @ Increment i
+    B outer_loop                           @ Repeat outer loop
+
+@ Start Binary Search
+start_binary_search:
+    LDR R6, =target                        @ Load address of target into R6
+    LDR R6, [R6]                           @ Load the target value into R6
+    LDR R7, =result                        @ Load address of result into R7
+
+    MOV R8, #0                             @ Left index (left = 0)
+    SUB R9, R5, #1                         @ Right index (right = n - 1)
+
+binary_search:
+    CMP R8, R9                             @ Check if left > right
+    BGT end_search                         @ If left > right, search ends
+
+    ADD R10, R8, R9                        @ Calculate mid = (left + right) / 2
+    MOV R10, R10, LSR #1                   @ Divide by 2 using logical shift
+
+    ADD R1, R4, R10, LSL #2                @ Calculate address of array[mid]
+    LDR R2, [R1]                           @ Load array[mid] into R2
+
+    CMP R2, R6                             @ Compare array[mid] with target
+    BEQ found                              @ If equal, target is found
+
+    BLT search_right                       @ If target > array[mid], search right
+
+    @ If target < array[mid], search left
+    SUB R9, R10, #1                        @ Set right = mid - 1
+    B binary_search                        @ Repeat binary search
+
+search_right:
+    ADD R8, R10, #1                        @ Set left = mid + 1
+    B binary_search                        @ Repeat binary search
+
+found:
+    STR R10, [R7]                          @ Store the index of the target in result
+    B end_search
+
+end_search:
+    MOV R7, #0x18                          @ syscall: exit (cpulator uses SWI 0)
+    SWI 0                                  @ Make syscall to exit
